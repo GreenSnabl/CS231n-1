@@ -131,10 +131,33 @@ def svm_loss_vectorized(W, X, y, reg):
     # loss.                                                                     #
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+    
+    # Scores N x C
+    # Create binary mask to mark all classifiers with loss > 0 
+    loss_mask = (scores > 0) * 1
+    
+    # Count of svm-clfs contributing to loss of sample i
+    loss_factor_true = loss_mask.sum(1)
+    
     # D x C
-    dW
-
+    # Loss for the false svm-clfs
+    dW = X.T @ loss_mask
+    
+    # Create mask containing the count the true class j svm-clf
+    # contributed to the loss for each sample i
+    # count will be at [i, j]
+    loss_true_mask = np.zeros(scores.shape)
+    loss_true_mask[range(len(y)), y] = loss_factor_true
+    
+    # This is a negative loss, thus subtract
+    dW -= X.T @ loss_true_mask
+    
+    # Average by number of samples
+    dW /= num_train
+    
+    # Don't forget the regularization
+    dW += 2 * reg * W
+    
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
     return loss, dW
