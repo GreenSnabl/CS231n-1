@@ -85,11 +85,11 @@ class TwoLayerNet(object):
         # W1 in DxH; b1 in H
         # W2 in HxC; b2 in C
         # scores in NxC
-        z1 = X @ W1 + b1
+        z1 = X.dot(W1) + b1
         # NxH
         a1 = np.maximum(0, z1)
         # NxC
-        scores = a1 @ W2 + b2
+        scores = a1.dot(W2) + b2
         
         
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -107,23 +107,16 @@ class TwoLayerNet(object):
         # classifier loss.                                                          #
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-        
-        num_samples = X.shape[0]
-        num_classes = scores.shape[1]
-        
+                
         stability_constants = np.max(scores, axis=1)[:,None]
-        scores_exp = np.exp(scores + stability_constants)
-        scores_exp_sum = scores_exp.sum(axis=1)[:, None]    
-        scores_sum = np.log(scores_exp_sum)
         
-        fs = scores[range(len(y)), y, None]
-
-        scores_sum -= fs
-        scores_sum -= stability_constants
-
-        loss = scores_sum.sum()
-        loss /= num_samples
-        loss += reg * np.sum(W1 * W1) + reg * np.sum(W2 * W2)    
+        scores_exp = np.exp(scores + stability_constants)
+        probabilities = scores_exp / np.sum(scores_exp, axis=1, keepdims=True)
+        
+        loss = -np.sum(np.log(probabilities[range(N), y]))
+        loss /= N
+        loss += reg * np.sum(W1 * W1)
+        loss += reg * np.sum(W2 * W2)
         
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -137,27 +130,15 @@ class TwoLayerNet(object):
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         
-        # NxC
-        scores_exp_frac = scores_exp / scores_exp_sum
+        grad_Z2 = probabilities
+        grad_Z2[range(N), y] -= 1
+        grad_Z2 /= N
+                
+        grads["W2"] = a1.T.dot(grad_Z2)
+        grads["W2"] += 2 * reg * W2
+        grads["b2"] = np.sum(grad_Z2, axis=0)      
         
-        # HxN @ NxC
-        dW2 = a1.T @ scores_exp_frac
         
-        true_lab_mask = np.zeros((num_samples, num_classes))
-        true_lab_mask[range(len(y)), y] = 1
-        dW2 -= a1.T @ true_lab_mask
-        
-        dW2 /= num_samples
-        dW2 += reg * W2
-        
-        # b2 in Hx1
-        db2_mask = np.ones((b2.shape[0], num_samples))
-        db2 = db2_mask @ scores_exp_frac
-        db2 -= db2_mask @ true_lab_mask
-        
-        grads["W2"] = dW2
-        grads["b2"] = db2
-
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
