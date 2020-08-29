@@ -21,7 +21,7 @@ class TwoLayerNet(object):
     The outputs of the second fully-connected layer are the scores for each class.
     """
 
-    def __init__(self, input_size, hidden_size, output_size, std=1e-4):
+    def __init__(self, input_size, hidden_size, output_size, std=1e-4, dropout_p=1):
         """
         Initialize the model. Weights are initialized to small random values and
         biases are initialized to zero. Weights and biases are stored in the
@@ -42,7 +42,8 @@ class TwoLayerNet(object):
         self.params['b1'] = np.zeros(hidden_size)
         self.params['W2'] = std * np.random.randn(hidden_size, output_size)
         self.params['b2'] = np.zeros(output_size)
-
+        self.dropout_p = dropout_p
+        
     def loss(self, X, y=None, reg=0.0):
         """
         Compute the loss and gradients for a two layer fully connected neural
@@ -98,6 +99,13 @@ class TwoLayerNet(object):
         if y is None:
             return scores
 
+        
+        if self.dropout_p < 1:
+            self.params["U1"] = (np.random.random(a1.shape) < self.dropout_p) / self.dropout_p
+            u1 = a1 * self.params['U1']
+            scores = u1.dot(W2) + b2
+        
+        
         # Compute the loss
         loss = None
         #############################################################################
@@ -137,6 +145,10 @@ class TwoLayerNet(object):
         
         df1 = (z1 > 0) * 1
         da1 = dz2.dot(W2.T)
+        
+        if self.dropout_p < 1:
+            da1 = da1 * self.params["U1"]
+        
         dz1 = da1 * df1
         
         dW1 = X.T.dot(dz1)
