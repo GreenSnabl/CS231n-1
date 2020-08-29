@@ -130,16 +130,28 @@ class TwoLayerNet(object):
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         
-        grad_Z2 = probabilities
-        grad_Z2[range(N), y] -= 1
-        grad_Z2 /= N
+        # NxC
+        dz2 = probabilities
+        dz2[range(N), y] -= 1
+        dz2 /= N
+        
+        df1 = (z1 > 0) * 1
+        da1 = dz2.dot(W2.T)
+        dz1 = da1 * df1
+        
+        dW1 = X.T.dot(dz1)
+        db1 = np.sum(dz1, axis=0)
+        
+        
+#        dz1 = W2.T.dot(df1.T)
                 
-        grads["W2"] = a1.T.dot(grad_Z2)
+        grads["W2"] = a1.T.dot(dz2)
         grads["W2"] += 2 * reg * W2
-        grads["b2"] = np.sum(grad_Z2, axis=0)      
+        grads["b2"] = np.sum(dz2, axis=0)      
+        grads["W1"] = dW1
+        grads["W1"] += 2 * reg * W1
+        grads["b1"] = db1
         
-        
-
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         return loss, grads
@@ -182,8 +194,11 @@ class TwoLayerNet(object):
             # them in X_batch and y_batch respectively.                             #
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-            pass
+            
+            batch_indices = np.random.choice(range(num_train), size=batch_size)
+            X_batch = X[batch_indices,:]
+            y_batch = y[batch_indices]
+            
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -199,8 +214,14 @@ class TwoLayerNet(object):
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
-
+            decay = learning_rate_decay ** (it % iterations_per_epoch) 
+            decay = 1
+            
+            self.params["W2"] -= decay * learning_rate * grads["W2"]
+            self.params["b2"] -= decay * learning_rate * grads["b2"]
+            self.params["W1"] -= decay * learning_rate * grads["W1"]
+            self.params["b1"] -= decay * learning_rate * grads["b1"]
+            
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
             if verbose and it % 100 == 0:
@@ -245,7 +266,10 @@ class TwoLayerNet(object):
         ###########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        # if no y is provided to self.loss(), it will return the scores
+        # ie. scores [NxC], now just pick the index per row corresponding to
+        # the highest score
+        y_pred = np.argmax(self.loss(X), axis=1)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
