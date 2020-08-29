@@ -28,7 +28,8 @@ def affine_forward(x, w, b):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    x_flat = x.reshape(x.shape[0], -1)
+    out = x_flat.dot(w) + b
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -60,8 +61,16 @@ def affine_backward(dout, cache):
     # TODO: Implement the affine backward pass.                               #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
+    
+#    print(f"N: {x.shape[0]}; M: {w.shape[1]}; D: {w.shape[0]}")
+    
+    dx = dout.dot(w.T).reshape(x.shape)
+    dw = x.reshape(x.shape[0], -1).T.dot(dout)
+    db = dout.sum(0)
+    
+#    print(f"dx [{dx.shape}]")
+#    print(f"dw [{dw.shape}]")
+#    print(f"db [{db.shape}]")
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -87,7 +96,7 @@ def relu_forward(x):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    out = x * (x > 0)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -114,7 +123,7 @@ def relu_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    dx = dout * (x > 0)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -753,6 +762,8 @@ def spatial_groupnorm_backward(dout, cache):
 def svm_loss(x, y):
     """
     Computes the loss and gradient using for multiclass SVM classification.
+    
+    -    L_i(theta) = sum_j^K max(0, s_j - s_yi + delta)
 
     Inputs:
     - x: Input data, of shape (N, C) where x[i, j] is the score for the jth
@@ -766,12 +777,29 @@ def svm_loss(x, y):
     """
     N = x.shape[0]
     correct_class_scores = x[np.arange(N), y]
+    
+    # calculate the margins for all samples and classes
     margins = np.maximum(0, x - correct_class_scores[:, np.newaxis] + 1.0)
+    
+    # set the margins of the true classes to zero
     margins[np.arange(N), y] = 0
+    
+    # Average the loss over the batch size
     loss = np.sum(margins) / N
+    
+    # Get vector of size (C,) with the counts of the class being the true class
+    # needed for backprop
     num_pos = np.sum(margins > 0, axis=1)
+    
+    # dx in this case is 
+    # dScore = [dScore_1, ..., dScore_K] for the full batch ie. [N, C]
     dx = np.zeros_like(x)
+    
+    # margin_ij > 0 means that we have (s_j - s_yi + delta) > 0
+    # and thus dmargin_ji / ds_j = 1
     dx[margins > 0] = 1
+    
+    # dmargin / d_s_yi = -1 if margin > 0
     dx[np.arange(N), y] -= num_pos
     dx /= N
     return loss, dx
@@ -791,12 +819,21 @@ def softmax_loss(x, y):
     - loss: Scalar giving the loss
     - dx: Gradient of the loss with respect to x
     """
+    # shifted because of stability constant max(x)
     shifted_logits = x - np.max(x, axis=1, keepdims=True)
+    
+    # denominator
     Z = np.sum(np.exp(shifted_logits), axis=1, keepdims=True)
+    
+    # here we use L = f - log(sum_j(exp^fj))
     log_probs = shifted_logits - np.log(Z)
     probs = np.exp(log_probs)
+    
+    # average over batch
     N = x.shape[0]
     loss = -np.sum(log_probs[np.arange(N), y]) / N
+    
+    # dfj
     dx = probs.copy()
     dx[np.arange(N), y] -= 1
     dx /= N
