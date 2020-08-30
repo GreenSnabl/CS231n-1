@@ -69,7 +69,8 @@ def sgd_momentum(w, dw, config=None):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    v = config["momentum"] * v - config["learning_rate"] * dw
+    next_w = w + v
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -107,7 +108,13 @@ def rmsprop(w, dw, config=None):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    learning_rate, decay_rate, cache, eps = config["learning_rate"],\
+                                            config["decay_rate"],\
+                                            config["cache"],\
+                                            config["epsilon"]
+                                            
+    config["cache"] = decay_rate * cache + (1 - decay_rate) * dw ** 2
+    next_w = w - learning_rate * dw / (np.sqrt(config["cache"]) + eps)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -152,7 +159,25 @@ def adam(w, dw, config=None):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    beta1, beta2, lr, eps = config["beta1"],\
+                            config["beta2"],\
+                            config["learning_rate"],\
+                            config["epsilon"]
+    config["t"] += 1
+    t = config["t"]
+
+    # Momentum
+    config["m"] = beta1 * config["m"] + (1 - beta1) * dw
+    # Bias correction. weight init normal(0, sd) is biased at 0
+    mt = config["m"] / (1 - beta1 ** t)
+
+    # Velocity
+    config["v"] = beta2 * config["v"] + (1 - beta2) * np.square(dw)
+    # Also bias correction
+    vt = config["v"] / (1 - beta2 ** t)
+
+    # Update
+    next_w = w - lr * mt / (np.sqrt(vt) + eps)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
