@@ -11,6 +11,12 @@ def eval_numerical_gradient(f, x, verbose=True, h=0.00001):
     a naive implementation of numerical gradient of f at x
     - f should be a function that takes a single argument
     - x is the point (numpy array) to evaluate the gradient at
+    
+    Iterating over arrays with nditer(flags=['multi_index'])
+    - https://stackoverflow.com/questions/48737823/tracking-multi-index-and-modifying-values-in-numpy
+    - it.multi_index -> index tuple (d0, d1, ..)
+    
+    Here we iterate over the partial gradients
     """
 
     fx = f(x)  # evaluate function value at original point

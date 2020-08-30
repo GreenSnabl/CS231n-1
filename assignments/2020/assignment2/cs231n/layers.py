@@ -30,6 +30,9 @@ def affine_forward(x, w, b):
 
     x_flat = x.reshape(x.shape[0], -1)
     out = x_flat.dot(w) + b
+    
+    #x = x.reshape(x.shape[0], -1)
+    #out = x.dot(w) + b
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -64,9 +67,14 @@ def affine_backward(dout, cache):
     
 #    print(f"N: {x.shape[0]}; M: {w.shape[1]}; D: {w.shape[0]}")
     
+
     dx = dout.dot(w.T).reshape(x.shape)
     dw = x.reshape(x.shape[0], -1).T.dot(dout)
-    db = dout.sum(0)
+    
+    #dx = dout.dot(w.T)
+    #dw = x.T.dot(dout)
+    
+    db = dout.sum(axis=0)
     
 #    print(f"dx [{dx.shape}]")
 #    print(f"dw [{dw.shape}]")
