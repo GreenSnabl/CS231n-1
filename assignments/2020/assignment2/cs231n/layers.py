@@ -211,7 +211,23 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        cache = {}
+
+        mu = x.mean(axis=0)
+        var = np.square(x - mu).mean(axis=0)
+        xh = (x - mu) / np.sqrt(var + eps)
+        out = gamma * xh + beta
+
+        running_mean = momentum * mu + (1 - momentum) * running_mean
+        running_var = momentum * var + (1 - momentum) * running_var
+
+        cache["x"] = x
+        cache["mu"] = mu
+        cache["var"] = var
+        cache["xh"] = xh
+        cache["gamma"] = gamma
+        cache["eps"] = eps
+#        cache["beta"] = beta
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -226,7 +242,8 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        xh = (x - running_mean) / np.sqrt(running_var + eps)
+        out = gamma * xh + beta 
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -268,7 +285,23 @@ def batchnorm_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    x = cache["x"]
+    mu = cache["mu"]
+    eps = cache["eps"]
+    var = cache["var"]
+
+    m = x.shape[0]
+    xmu = (x - mu).sum(axis=0)
+
+    dxh = dout * cache["gamma"]
+    dgamma = (dout * cache["xh"]).sum(0)
+    dbeta = dout.sum(axis=0)
+
+    dvar = (dxh * (x - mu) * ((var + eps) ** (-3/2)) * (-1 / 2)).sum(0) 
+    
+    dmu = (-dxh / np.sqrt(var + eps)).sum(0) + (dvar * (-2 * xmu) / m )  
+
+    dx = dxh /  np.sqrt(var + eps) + dvar * 2 * (x - mu) / m + dmu / m    
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
