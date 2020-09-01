@@ -145,7 +145,7 @@ class TwoLayerNet(object):
 
         return loss, grads
 
-def affine_batchnorm_relu_forward(x, w, b, gamma, beta, bn_param):
+def affine_norm_relu_forward(x, w, b, gamma, beta, bn_param, normalization="batchnorm"):
     """
     Convenience layer that perorms an affine transform followed by a ReLU
 
@@ -158,19 +158,28 @@ def affine_batchnorm_relu_forward(x, w, b, gamma, beta, bn_param):
     - cache: Object to give to the backward pass
     """
     out, fc_cache = affine_forward(x, w, b)
-    out, bn_cache = batchnorm_forward(out, gamma=gamma , beta=beta, bn_param=bn_param)
+
+    if normalization == "batchnorm":
+      out, norm_cache = batchnorm_forward(out, gamma=gamma , beta=beta, bn_param=bn_param)
+    elif normalization == "layernorm":
+      out, norm_cache = layernorm_forward(out, gamma=gamma , beta=beta, bn_param=bn_param)
+    
     out, relu_cache = relu_forward(out)
-    cache = (fc_cache, bn_cache, relu_cache)
+    cache = (fc_cache, norm_cache, relu_cache)
     return out, cache
 
 
-def affine_batchnorm_relu_backward(dout, cache):
+def affine_norm_relu_backward(dout, cache, normalization):
     """
     Backward pass for the affine-relu convenience layer
     """
-    fc_cache, bn_cache, relu_cache = cache
+    fc_cache, norm_cache, relu_cache = cache
     dout = relu_backward(dout, relu_cache)
-    dout, dgamma, dbeta = batchnorm_backward_alt(dout, bn_cache)
+    if normalization == "batchnorm":
+      dout, dgamma, dbeta = batchnorm_backward_alt(dout, norm_cache)
+    elif normalization == "layernorm":
+      dout, dgamma, dbeta = layernorm_backward(dout, norm_cache)
+    
     dout, dw, db = affine_backward(dout, fc_cache)
     return dout, dw, db, dgamma, dbeta
 
@@ -262,7 +271,7 @@ class FullyConnectedNet(object):
             out_dim = num_classes
           else: 
             out_dim = hidden_dims[i]
-            if normalization == "batchnorm":
+            if normalization is not None:
               self.params[f"gamma{i+1}"] = np.ones(out_dim)
               self.params[f"beta{i+1}"] = np.zeros(out_dim)
           
@@ -339,13 +348,14 @@ class FullyConnectedNet(object):
           W, b = self.params[f"W{i}"], self.params[f"b{i}"]
           reg_loss += 0.5 * self.reg * np.sum(W * W)
           
-          if self.normalization == "batchnorm":
-            out, caches[f"fc_{i}"] = affine_batchnorm_relu_forward(out, 
-                                                                   W, 
-                                                                   b,
-                                                                   gamma=self.params[f"gamma{i}"],
-                                                                   beta=self.params[f"beta{i}"],
-                                                                   bn_param=self.bn_params[i-1])          
+          if self.normalization is not None:
+            out, caches[f"fc_{i}"] = affine_norm_relu_forward(out, 
+                                                              W,
+                                                              b,
+                                                              gamma=self.params[f"gamma{i}"],
+                                                              beta=self.params[f"beta{i}"],
+                                                              bn_param=self.bn_params[i-1],
+                                                              normalization=self.normalization)
           else:
             out, caches[f"fc_{i}"] = affine_relu_forward(out, W, b)
           
@@ -399,8 +409,8 @@ class FullyConnectedNet(object):
           if self.use_dropout:
             dout = dropout_backward(dout, caches[f"dp_{i}"])
           
-          if self.normalization == "batchnorm":
-            dout, dW, db, dgamma, dbeta = affine_batchnorm_relu_backward(dout, cache)
+          if self.normalization is not None:
+            dout, dW, db, dgamma, dbeta = affine_norm_relu_backward(dout, cache, normalization=self.normalization)
             grads[f"gamma{i}"] = dgamma
             grads[f"beta{i}"] = dbeta
           else:
