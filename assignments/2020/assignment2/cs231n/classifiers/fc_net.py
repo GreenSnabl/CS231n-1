@@ -162,7 +162,7 @@ def affine_norm_relu_forward(x, w, b, gamma, beta, bn_param, normalization="batc
     if normalization == "batchnorm":
       out, norm_cache = batchnorm_forward(out, gamma=gamma , beta=beta, bn_param=bn_param)
     elif normalization == "layernorm":
-      out, norm_cache = layernorm_forward(out, gamma=gamma , beta=beta, bn_param=bn_param)
+      out, norm_cache = layernorm_forward(out, gamma=gamma , beta=beta, ln_param=bn_param)
     
     out, relu_cache = relu_forward(out)
     cache = (fc_cache, norm_cache, relu_cache)
@@ -260,7 +260,7 @@ class FullyConnectedNet(object):
                                        size=(input_dim, hidden_dims[0]))
         self.params["b1"] = np.zeros(hidden_dims[0])
 
-        if self.normalization == "batchnorm":
+        if self.normalization is not None:
           self.params["gamma1"] = np.ones(hidden_dims[0])
           self.params["beta1"] = np.zeros(hidden_dims[0])
 

@@ -216,7 +216,8 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         mu = x.mean(axis=0)
         xmu = x - mu
         var = np.square(xmu).mean(axis=0)
-        xh = xmu / np.sqrt(var + eps)
+        isig = 1. / np.sqrt(var + eps)
+        xh = xmu * isig
         out = gamma * xh + beta
 
         running_mean = momentum * mu + (1 - momentum) * running_mean
@@ -227,6 +228,7 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         cache["var"] = var
         cache["xh"] = xh
         cache["xmu"] = xmu
+        cache["isig"] = isig
         cache["gamma"] = gamma
         cache["eps"] = eps
 #        cache["beta"] = beta
@@ -357,16 +359,19 @@ def batchnorm_backward_alt(dout, cache):
     xh = cache["xh"]
     eps = cache["eps"]
     gamma = cache["gamma"]
+    isig = cache["isig"]
     N = x.shape[0]
 
     dbeta = dout.sum(axis=0)
     dgamma = (dout * xh).sum(axis=0)
-    dx = 1./ N * gamma * (var + eps)**(-0.5) * \
+
+    dxhat = dout * gamma
+
+    dx = 1./ N * isig * \
       (
-        N * dout - 
-        dout.sum(axis=0) -
-        (x - mu) / (var + eps) * 
-        (dout * (x - mu)).sum(axis=0)
+        N * dxhat - 
+        dxhat.sum(axis=0) -
+        xh * (dxhat * xh).sum(axis=0)
       )
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -430,24 +435,6 @@ def layernorm_forward(x, gamma, beta, ln_param):
     cache["gamma"] = gamma
     cache["eps"] = eps
 
-#    cache = {}
-#
-#    mu = x.mean(axis=1, keepdims=True)
-#    xmu = (x - mu)
-#    var = np.square(xmu).mean(axis=1, keepdims=True)
-#    sig = np.sqrt(var + eps)
-#    isig = 1 / sig
-#    xh = xmu * isig
-#    out = gamma[None, :] * xh + beta[None, :]
-#
-#    cache["x"] = x
-#    cache["xh"] = xh
-#    cache["var"] = var
-#    cache["xmu"] = xmu
-#    cache["isig"] = isig
-#    cache["gamma"] = gamma
-#    cache["eps"] = eps      
-
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -481,8 +468,6 @@ def layernorm_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    dout = dout.T
-
     x = cache["x"]
     mu = cache["mu"]
     var = cache["var"]
@@ -492,37 +477,34 @@ def layernorm_backward(dout, cache):
     
     N, D = x.shape
 
+    dxhat = (dout * gamma).T
+    dout = dout.T
+
     dbeta = dout.sum(axis=1)
     dgamma = (dout * xh).sum(axis=1)
-    dx = 1./ N * gamma[:, None] * (var + eps)**(-0.5) * \
+
+    dx = 1./ N * (var + eps)**(-0.5) * \
       (
-        N * dout - 
-        dout.sum(axis=0) -
-        (x - mu) / (var + eps) * 
-        (dout * (x - mu)).sum(axis=0)
+        N * dxhat - 
+        dxhat.sum(axis=0) -
+        xh * (dxhat * xh).sum(axis=0)
       )
     dx = dx.T
 
-#    x = cache["x"]
+#  Old erroneous version
 #
-#    N, D = x.shape
+#    dout = dout.T
 #
-#    xh = cache["xh"]
-#    xmu = cache["xmu"]
-#    var = cache["var"]
-#    isig = cache["isig"]
-#    gamma = cache["gamma"]
-#    eps = cache["eps"]
+#    dbeta = dout.sum(axis=1)
+#    dgamma = (dout * xh).sum(axis=1)
 #
-#    dbeta = dout.sum(axis=1, keepdims=True)
-#    dgammax = dout
-#    dgamma = (dgammax * xh).sum(axis=1, keepdims=True)
-#
-#    dx = 1 / D * gamma[None, :] * isig * (
-#      D * dout - 
-#      dout.sum(axis=1, keepdims=True) - 
-#      xmu / (var + eps) * (dout * xmu).sum(axis=1, keepdims=True)
-#    )
+#    dx = 1./ N * gamma[:, None] * (var + eps)**(-0.5) * \
+#      (
+#        N * dout - 
+#        dout.sum(axis=0) -
+#        xh * (dout * (x - mu)).sum(axis=0)
+#      )
+#    dx = dx.T
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
