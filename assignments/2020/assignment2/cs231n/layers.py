@@ -815,7 +815,27 @@ def max_pool_backward_naive(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    x, pool_param = cache
+
+    pw = pool_param["pool_width"]
+    ph = pool_param["pool_height"]
+    stride = pool_param["stride"]
+
+    N, C, H, W = x.shape
+    _, _, H2, W2 = dout.shape
+
+    dx = np.zeros(x.shape)
+
+    for n in range(N):
+      for i in range(H2):
+        for j in range(W2):
+          h, h_end = i * stride, i * stride + ph
+          w, w_end = j * stride, j * stride + pw
+          vol = x[n, :, h:h_end, w:w_end]
+          max_h = np.argmax(vol, axis=1)
+          max_w = np.argmax(vol, axis=2)
+          dx[n, :, max_h, max_w] = dout[n, :, max_h, max_w]
+    
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
