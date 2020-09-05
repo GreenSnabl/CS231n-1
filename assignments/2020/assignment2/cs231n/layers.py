@@ -643,7 +643,32 @@ def conv_forward_naive(x, w, b, conv_param):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    pad = conv_param["pad"]
+    stride = conv_param["stride"]
+
+    N, C, H, W = x.shape
+    F, _, HH, WW = w.shape
+
+    assert((H - HH + 2 * pad) % stride  == 0)
+    assert((W - WW + 2 * pad) % stride  == 0)
+    H2 = np.int((H - HH + 2 * pad) / stride + 1)
+    W2 = np.int((W - WW + 2 * pad) / stride + 1)
+
+    x_pad = np.pad(x, 
+                   pad_width=((0,0), (0,0), (pad, pad), (pad, pad)), 
+                   mode="constant", 
+                   constant_values=(0,))
+
+    
+    out = np.zeros((N, F, H2, W2))
+
+    for n in range(N):
+      for f in range(F):
+        for hh in range(H2):
+          for ww in range(W2):
+            h_start, h_end = hh * stride, hh * stride + HH
+            w_start, w_end = ww * stride, ww * stride + WW
+            out[n, f, hh, ww] = np.sum(w[f, ...] * x_pad[n, :, h_start:h_end, w_start:w_end]) + b[f] 
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -658,7 +683,7 @@ def conv_backward_naive(dout, cache):
     A naive implementation of the backward pass for a convolutional layer.
 
     Inputs:
-    - dout: Upstream derivatives.
+    - dout: Upstream derivatives of shape (N, F, H2, W2)
     - cache: A tuple of (x, w, b, conv_param) as in conv_forward_naive
 
     Returns a tuple of:
@@ -671,9 +696,46 @@ def conv_backward_naive(dout, cache):
     # TODO: Implement the convolutional backward pass.                        #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    x, w, b, conv_param = cache
 
-    pass
+    pad = conv_param["pad"]
+    stride = conv_param["stride"]
 
+    x_pad = np.pad(array=x,
+                   pad_width=((0,0), (0,0), (pad, pad), (pad,pad)),
+                   mode="constant",
+                   constant_values=(0,))
+
+    dx_pad = np.zeros(x_pad.shape)
+    
+    N, C, H, W = x.shape
+    F, _, HH, WW = w.shape
+    _, _, H2, W2 = dout.shape
+
+    dx = np.zeros(x.shape) # N, C, H, W
+    dw = np.zeros(w.shape) # F, C, H, W
+    db = np.zeros(b.shape) # F
+
+    # db
+    db = np.sum(dout, axis=(0,2,3))
+
+    for n in range(N):
+      for f in range(F):
+         for i in range(H2):
+           for j in range(W2):
+             h_start, h_end = i * stride, i * stride + HH
+             w_start, w_end = j * stride, j * stride + WW
+             
+             # dw
+             dw[f] += x_pad[n, :, h_start:h_end, w_start:w_end] * \
+                      dout[n, f, i, j]
+             
+             # dx
+             dx_pad[n, :, h_start:h_end, w_start:w_end] += \
+               w[f] * dout[n, f, i, j]
+      
+    dx = dx_pad[:, :, pad:H + pad, pad:W + pad]
+                          
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -706,7 +768,27 @@ def max_pool_forward_naive(x, pool_param):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    pw = pool_param["pool_width"]
+    ph = pool_param["pool_height"]
+    stride = pool_param["stride"]
+
+    N, C, H, W = x.shape
+
+    assert((H - ph) % stride == 0)
+    assert((W - pw) % stride == 0)
+
+    H2 = np.int((H - ph) / stride + 1)
+    W2 = np.int((W - pw) / stride + 1)
+
+    out = np.zeros((N, C, H2, W2))
+
+    for n in range(N):
+      for i in range(H2):
+        for j in range(W2):
+          vol = x[n, :, i * stride:i * stride + ph, j * stride:j * stride + pw]
+          out[n, :, i, j] = np.max(vol, axis=(1,2))
+
+    cache = (x, pool_param)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
